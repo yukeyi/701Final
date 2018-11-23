@@ -1,9 +1,10 @@
 import pandas as pd
 import numpy as np
-from sklearn import tree
+from sklearn import linear_model
 from scipy import spatial
 import csv
 import numpy as np
+import math
 
 base_dir = './Quora_question_pair_partition/'
 train_dir = base_dir + 'train.tsv'
@@ -25,7 +26,7 @@ loadWordDic()
 
 # read data
 def loadData():
-    train_df = pd.read_csv(train_dir,sep='\t', header=None, names=['label','q1','q2','id'])
+    train_df = pd.read_csv(train_dir,sep='\t', header=None, names=['label','q1','q2','id'],nrows =10000)
     train_X, train_y = train_df[['q1','q2']], train_df['label']
     dev_df = pd.read_csv(dev_dir,sep='\t', header=None, names=['label','q1','q2','id'])
     dev_X, dev_y = dev_df[['q1','q2']], dev_df['label']
@@ -63,22 +64,22 @@ def generate_features(df):
     '''
 
     # cosine based distance statistics
-    #df['dis_mean1'] = df.apply(dis_mean1, axis=1)
-    #feature_names.append('dis_mean1')
+    df['dis_mean1'] = df.apply(dis_mean1, axis=1)
+    feature_names.append('dis_mean1')
     #df['dis_core_mean1'] = df.apply(dis_core_mean1, axis=1)
     #feature_names.append('dis_core_mean1')
-    #df['dis_median1'] = df.apply(dis_median1, axis=1)
-    #feature_names.append('dis_median1')
-    #df['dis_mean2'] = df.apply(dis_mean2, axis=1)
-    #feature_names.append('dis_mean2')
+    df['dis_median1'] = df.apply(dis_median1, axis=1)
+    feature_names.append('dis_median1')
+    df['dis_mean2'] = df.apply(dis_mean2, axis=1)
+    feature_names.append('dis_mean2')
     #df['dis_core_mean2'] = df.apply(dis_core_mean2, axis=1)
     #feature_names.append('dis_core_mean2')
-    #df['dis_median2'] = df.apply(dis_median2, axis=1)
-    #feature_names.append('dis_median2')
+    df['dis_median2'] = df.apply(dis_median2, axis=1)
+    feature_names.append('dis_median2')
 
     # relative length rate
-    #df['rate_len'] = df.apply(rate_len, axis=1)
-    #feature_names.append('rate_len')
+    df['rate_len'] = df.apply(rate_len, axis=1)
+    feature_names.append('rate_len')
 
     print("Finish generating features")
 
@@ -89,15 +90,15 @@ def generate_features(df):
 def train(train_X, train_y, para):
     feature_names, df = generate_features(train_X)
 
-    clf = tree.DecisionTreeClassifier(max_depth=para['max_depth'])
+    logreg = linear_model.LogisticRegression(penalty='l2',C=para['C'])
 
-    clf.fit(df[feature_names], train_y)
+    logreg.fit(df[feature_names], train_y)
 
-    acc = clf.score(df[feature_names], train_y)
+    acc = logreg.score(df[feature_names], train_y)
 
     print("Accuracy on the training set:", acc)
 
-    return acc, clf
+    return acc, logreg
 
 
 ## select hyper parameters on the dev set
@@ -329,7 +330,7 @@ def main():
     train_X, train_y, dev_X, dev_y, test_X, test_y = loadData()
     print("Finish loading data")
 
-    paras = [{'max_depth': 100}]
+    paras = [{'C': 1e5}]
 
     acc_dev, model = select_model(train_X, train_y, dev_X, dev_y, paras)
     print("Accuracy on the development set is:", acc_dev)
